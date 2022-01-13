@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from DeepKnockoffs.machine import KnockoffMachine
-from DeepKnockoffs.gaussian import GaussianKnockoffs
+from Deep_Knockoffs.machine import KnockoffMachine
+from Deep_Knockoffs.gaussian import GaussianKnockoffs
 import data
 import parameters
 import selection
@@ -51,7 +51,7 @@ pars = dict()
 # Number of epochs
 pars['epochs'] = 100
 # Number of iterations over the full data per epoch
-pars['epoch_length'] = 100
+pars['epoch_length'] = 10
 # Data type, either "continuous" or "binary"
 pars['family'] = "continuous"
 # Dimensions of the data
