@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from DeepKnockoffs import KnockoffMachine
-from DeepKnockoffs import GaussianKnockoffs
+from DeepKnockoffs.machine import KnockoffMachine
+from DeepKnockoffs.gaussian import GaussianKnockoffs
 import data
 import parameters
 import selection

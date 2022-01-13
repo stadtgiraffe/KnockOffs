@@ -24,7 +24,7 @@ print('Average absolute pairwise correlation: %.3f.' % (np.mean(np.abs(corr_g)))
 # - gmm      : Gaussian mixture model
 # - mstudent : Multivariate Student's-t distribution
 # - sparse   : Multivariate sparse Gaussian distribution
-model = "sparse"
+model = "gaussian"
 # Number of features
 n = data_train['x'].shape[0]
 p = data_train['x'].shape[1]

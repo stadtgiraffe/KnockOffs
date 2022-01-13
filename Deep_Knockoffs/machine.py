@@ -208,7 +208,7 @@ class KnockoffMachine:
         self.LAMBDA = pars['LAMBDA']
 
         # noise seed
-        self.noise_std = 0.1
+        self.noise_std = 0.0
         self.dim_noise = self.p
 
         # higher-order discrepancy function

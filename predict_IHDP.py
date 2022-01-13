@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from DeepKnockoffs import KnockoffMachine
-from DeepKnockoffs import GaussianKnockoffs
+from DeepKnockoffs.machine import KnockoffMachine
+from DeepKnockoffs.gaussian import GaussianKnockoffs
 import data
 import parameters
 import selection
@@ -23,7 +23,7 @@ p = 25
 # Number of training examples
 data_train, data_test = load_IHDP_data(type_a=True, i=0)
 
-model = "sparse"
+model = "gaussian"
 n = data_train['x'].shape[0]
 
 # Compute the empirical covariance matrix of the training data
