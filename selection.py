@@ -58,13 +58,13 @@ def select(W, beta, nominal_fdr=0.1):
     nonzero = np.where(beta!=0)[0]
     TP = len(np.intersect1d(selected, nonzero))
     FP = len(selected) - TP
-    FDP = FP / max(TP+FP,1.0)
-    POW = TP / max(len(nonzero),1.0)
+    FDP = FP / max(TP+FP, 1.0)
+    POW = TP / max(len(nonzero), 1.0)
     return selected, FDP, POW
 
 
 def select_IHDP(W, nominal_fdr=0.1):
     W_threshold = kfilter(W, q=nominal_fdr)
-    print(W_threshold)
+    print(f'\n {W_threshold}')
     selected = np.where(W >= W_threshold)[0]
     return selected

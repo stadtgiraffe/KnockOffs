@@ -96,7 +96,7 @@ signal_amplitude_vec = [3, 5, 7, 10, 15, 20, 25]
 n_experiments = 100
 
 # Target FDR level
-nominal_fdr = 0.1
+nominal_fdr = 0.2
 
 test_params = parameters.GetFDRTestParams(model)
 

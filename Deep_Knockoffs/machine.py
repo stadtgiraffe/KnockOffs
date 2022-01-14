@@ -81,9 +81,73 @@ def gen_batches(n_samples, batch_size, n_reps):
     return (batches)
 
 
+class Net_IHDP(nn.Module):
+    """ Deep knockoff network"""
+
+    def __init__(self, p, dim_h):
+        """ Constructor
+        :param p: dimensions of data
+        :param dim_h: width of the network (~6 layers are fixed)
+        :param family: data type, either "continuous" or "binary"
+        """
+        super(Net_IHDP, self).__init__()
+
+        self.p = p
+        self.p_binary = 19
+        self.dim_h = dim_h
+
+        self.main = nn.Sequential(
+            nn.Linear(self.p, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h),
+            nn.Dropout(p=0.5, inplace=False),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.p)
+        )
+
+        self.binary_head = nn.Sequential(
+            nn.Sigmoid(),
+            nn.BatchNorm1d(self.p_binary, eps=1e-02),
+        )
+
+    def forward(self, x, noise):
+        """ Sample knockoff copies of the data
+        :param x: input data
+        :param noise: random noise seed
+        :returns the constructed knockoffs
+        """
+        # x_cat = torch.cat((x, noise), 1)
+        # x_cat[:, 0::2] = x
+        # x_cat[:, 1::2] = noise
+        output = self.main(x)
+        continous_output = output[:, :6]
+        binary_output = self.binary_head(output[:, 6:25])
+        out = torch.cat((continous_output, binary_output), 1)
+
+        return out
+
+
 class Net(nn.Module):
-    """ Deep knockoff network
-    """
+    """ Deep knockoff network"""
 
     def __init__(self, p, dim_h, family="continuous"):
         """ Constructor
@@ -95,25 +159,26 @@ class Net(nn.Module):
 
         self.p = p
         self.dim_h = dim_h
+
         if (family == "continuous"):
             self.main = nn.Sequential(
                 nn.Linear(2 * self.p, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.dim_h, bias=False),
-                # nn.BatchNorm1d(self.dim_h),
+                nn.BatchNorm1d(self.dim_h),
                 nn.PReLU(),
                 nn.Linear(self.dim_h, self.p),
             )
@@ -142,7 +207,7 @@ class Net(nn.Module):
                 nn.BatchNorm1d(self.p, eps=1e-02),
             )
         else:
-            sys.exit("Error: unknown family");
+            sys.exit("Error: unknown family")
 
     def forward(self, x, noise):
         """ Sample knockoff copies of the data
@@ -151,6 +216,7 @@ class Net(nn.Module):
         :returns the constructed knockoffs
         """
         x_cat = torch.cat((x, noise), 1)
+
         x_cat[:, 0::2] = x
         x_cat[:, 1::2] = noise
         return self.main(x_cat)
@@ -167,7 +233,7 @@ class KnockoffMachine:
     """ Deep Knockoff machine
     """
 
-    def __init__(self, pars, checkpoint_name=None, logs_name=None):
+    def __init__(self, pars, checkpoint_name=None, logs_name=None, ihdp=True):
         """ Constructor
         :param pars: dictionary containing the following keys
                 'family': data type, either "continuous" or "binary"
@@ -215,6 +281,9 @@ class KnockoffMachine:
         self.matching_loss = mix_rbf_mmd2_loss
         self.matching_param = self.alphas
 
+        # dataset
+        self.IHDP = ihdp
+
         # Normalize learning rate to avoid numerical issues
         self.lr = self.lr / np.max([self.DELTA, self.GAMMA, self.GAMMA, self.LAMBDA, 1.0])
 
@@ -234,7 +303,10 @@ class KnockoffMachine:
         self.resume_epoch = 0
 
         # init the network
-        self.net = Net(self.p, self.dim_h, family=self.family)
+        if self.IHDP:
+            self.net = Net_IHDP(self.p, self.dim_h)
+        else:
+            self.net = Net(self.p, self.dim_h, family=self.family)
 
     def compute_diagnostics(self, X, Xk, noise, test=False):
         """ Evaluates the different components of the loss function
@@ -495,6 +567,7 @@ class KnockoffMachine:
             # If the test loss is at a minimum, save the machine to
             # the location pointed by best_checkpoint_name
             losses_test.append(diagnostics_test["Loss"])
+
             if ((self.test_size > 0) and (diagnostics_test["Loss"] == np.min(losses_test)) and
                     (self.best_checkpoint_name is not None)):
                 best_machine = True
@@ -512,15 +585,15 @@ class KnockoffMachine:
             # Print progress
             ##############################
             if (self.test_size > 0):
-                print("[%4d/%4d], Loss: (%.4f, %.4f)" %
+                print("[%4d/%4d],  Loss: (%.4f, %.4f)" %
                       (epoch + 1, self.epochs, diagnostics_train["Loss"], diagnostics_test["Loss"]), end=", ")
-                print("MMD: (%.4f, %.4f)" %
+                print(" MMD: (%.4f, %.4f)" %
                       (diagnostics_train["MMD-Full"] + diagnostics_train["MMD-Swap"],
                        diagnostics_test["MMD-Full"] + diagnostics_test["MMD-Swap"]), end=", ")
-                print("Cov: (%.3f, %.3f)" %
+                print(" Cov: (%.3f, %.3f)" %
                       (diagnostics_train["Corr-Full"] + diagnostics_train["Corr-Swap"],
                        diagnostics_test["Corr-Full"] + diagnostics_test["Corr-Swap"]), end=", ")
-                print("Decorr: (%.3f, %.3f)" %
+                print(" Decorr: (%.3f, %.3f)" %
                       (diagnostics_train["Corr-Diag"], diagnostics_test["Corr-Diag"]), end="")
                 if best_machine:
                     print(" *", end="")
