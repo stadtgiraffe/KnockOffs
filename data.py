@@ -23,7 +23,7 @@ def load_IHDP_data(type_a=False, i=7):
                                                                                      np.newaxis].astype('float32'), \
                                    data_test[:, 5:].astype('float32')
 
-    data_train = {'x': x_train, 't': t_train, 'y': y_train, 't': t_train, 'mu_0': mu_0_train, 'mu_1': mu_1_train}
+    data_train = {'x': x_train, 'y': y_train, 't': t_train, 'mu_0': mu_0_train, 'mu_1': mu_1_train}
 
     data_train['t'] = data_train['t'].reshape(-1,
                                               1)  # we're just padding one dimensional vectors with an additional dimension

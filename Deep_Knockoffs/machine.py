@@ -99,27 +99,27 @@ class Net_IHDP(nn.Module):
         self.main = nn.Sequential(
             nn.Linear(self.p, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            nn.Dropout(p=0.5, inplace=False),
+            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.p)
         )
@@ -139,6 +139,7 @@ class Net_IHDP(nn.Module):
         # x_cat[:, 0::2] = x
         # x_cat[:, 1::2] = noise
         output = self.main(x)
+        # continous_output = torch.cat((output[:, :6], output[:, 25:]), 1)
         continous_output = output[:, :6]
         binary_output = self.binary_head(output[:, 6:25])
         out = torch.cat((continous_output, binary_output), 1)
@@ -233,7 +234,7 @@ class KnockoffMachine:
     """ Deep Knockoff machine
     """
 
-    def __init__(self, pars, checkpoint_name=None, logs_name=None, ihdp=True):
+    def __init__(self, pars, checkpoint_name=None, logs_name=None, ihdp=True, ds=0):
         """ Constructor
         :param pars: dictionary containing the following keys
                 'family': data type, either "continuous" or "binary"
@@ -292,8 +293,8 @@ class KnockoffMachine:
             self.checkpoint_name = None
             self.best_checkpoint_name = None
         else:
-            self.checkpoint_name = checkpoint_name + "_checkpoint.pth.tar"
-            self.best_checkpoint_name = checkpoint_name + "_best.pth.tar"
+            self.checkpoint_name = checkpoint_name + f"_checkpoint_{ds}.pth.tar"
+            self.best_checkpoint_name = checkpoint_name + f"_best_{ds}.pth.tar"
 
         if logs_name == None:
             self.logs_name = None
@@ -442,18 +443,21 @@ class KnockoffMachine:
         loss_display = loss
         return loss, loss_display, mmd_full, mmd_swap
 
-    def train(self, X_in, resume=False):
+    def train(self, X_in, X_in_test, resume=False):
         """ Fit the machine to the training data
         :param X_in: input data
         :param resume: proceed the training by loading the last checkpoint
         """
 
         # Divide data into training/test set
+        # X = torch.from_numpy(X_in[self.test_size:]).float()
+        # if (self.test_size > 0):
+        #     X_test = torch.from_numpy(X_in[:self.test_size]).float()
+        # else:
+        #     X_test = torch.zeros(0, self.p)
+
         X = torch.from_numpy(X_in[self.test_size:]).float()
-        if (self.test_size > 0):
-            X_test = torch.from_numpy(X_in[:self.test_size]).float()
-        else:
-            X_test = torch.zeros(0, self.p)
+        X_test = torch.from_numpy(X_in_test[self.test_size:]).float()
 
         # used to compute statistics and diagnostics
         self.SigmaHat = np.cov(X, rowvar=False)
@@ -624,11 +628,11 @@ class KnockoffMachine:
                     'scheduler': self.net_sched.state_dict(),
                 }, self.checkpoint_name)
 
-    def load(self, checkpoint_name):
+    def load(self, checkpoint_name, ds):
         """ Load a machine from a stored checkpoint
         :param checkpoint_name: checkpoint name of a trained machine
         """
-        filename = checkpoint_name + "_checkpoint.pth.tar"
+        filename = checkpoint_name + f"_checkpoint_{ds}.pth.tar"
 
         flag = 1
         if os.path.isfile(filename):

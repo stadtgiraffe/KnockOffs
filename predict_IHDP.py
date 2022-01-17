@@ -22,117 +22,132 @@ p = 25
 
 # Number of training examples
 
-for dataset_i in range(100):
-    print(f'\n \n Evaluate dataset number: {dataset_i} \n \n')
-    data_train, data_test = load_IHDP_data(type_a=True, i=dataset_i)
+# for dataset_i in range(10):
+#     print(f'\n \n Evaluate dataset number: {dataset_i} \n \n')
+#     data_train, data_test = load_IHDP_data(type_a=True, i=dataset_i)
 
-    model = "mstudent"
-    n = data_train['x'].shape[0]
+k = 0
+data_train, data_test = load_IHDP_data(type_a=True, i=0)
+for k in range(1, 10):
+    ds_train, ds_test = load_IHDP_data(type_a=True, i=k)
+    data_train['x'] = np.concatenate((data_train['x'], ds_train['x']), 0)
+    data_train['t'] = np.concatenate((data_train['t'], ds_train['t']), 0)
+    data_train['y'] = np.concatenate((data_train['y'], ds_train['y']), 0)
+    data_train['mu_0'] = np.concatenate((data_train['mu_0'], ds_train['mu_0']), 0)
+    data_train['mu_1'] = np.concatenate((data_train['mu_1'], ds_train['mu_1']), 0)
 
-    # Compute the empirical covariance matrix of the training data
-    SigmaHat = np.cov(data_train['x'], rowvar=False)
+    data_test['x'] = np.concatenate((data_test['x'], ds_test['x']), 0)
+    data_test['t'] = np.concatenate((data_test['t'], ds_test['t']), 0)
+    data_test['y'] = np.concatenate((data_test['y'], ds_test['y']), 0)
+    data_test['mu_0'] = np.concatenate((data_test['mu_0'], ds_test['mu_0']), 0)
+    data_test['mu_1'] = np.concatenate((data_test['mu_1'], ds_test['mu_1']), 0)
 
-    # Initialize generator of second-order knockoffs
-    second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data_train['x'], 0), method="equi")
 
-    # Measure pairwise second-order knockoff correlations
-    corr_g = (np.diag(SigmaHat) - np.diag(second_order.Ds)) / np.diag(SigmaHat)
+model = "mstudent"
+n = data_test['x'].shape[0]
 
-    print('Average absolute pairwise correlation: %.3f.' % (np.mean(np.abs(corr_g))))
+# Compute the empirical covariance matrix of the testing data
+SigmaHat = np.cov(data_test['x'], rowvar=False)
 
-    # Load the default hyperparameters for this model
-    training_params = parameters.GetTrainingHyperParams(model)
+# Initialize generator of second-order knockoffs
+second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data_test['x'], 0), method="equi")
 
-    # Set the parameters for training deep knockoffs
-    pars = dict()
-    # Number of epochs
-    pars['epochs'] = 100
-    # Number of iterations over the full data per epoch
-    pars['epoch_length'] = 100
-    # Data type, either "continuous" or "binary"
-    pars['family'] = "continuous"
-    # Dimensions of the data
-    pars['p'] = p
-    # Size of the test set
-    pars['test_size'] = 0
-    # Batch size
-    pars['batch_size'] = int(0.5*n)
-    # Learning rate
-    pars['lr'] = 0.01
-    # When to decrease learning rate (unused when equal to number of epochs)
-    pars['lr_milestones'] = [pars['epochs']]
-    # Width of the network (number of layers is fixed to 6)
-    pars['dim_h'] = int(10*p)
-    # Penalty for the MMD distance
-    pars['GAMMA'] = training_params['GAMMA']
-    # Penalty encouraging second-order knockoffs
-    pars['LAMBDA'] = training_params['LAMBDA']
-    # Decorrelation penalty hyperparameter
-    pars['DELTA'] = training_params['DELTA']
-    # Target pairwise correlations between variables and knockoffs
-    pars['target_corr'] = corr_g
-    # Kernel widths for the MMD measure (uniform weights)
-    pars['alphas'] = [1., 2., 4., 8., 16., 32., 64., 128.]
+# Measure pairwise second-order knockoff correlations
+corr_g = (np.diag(SigmaHat) - np.diag(second_order.Ds)) / np.diag(SigmaHat)
 
-    # Where the machine is stored
-    checkpoint_name = "tmp/" + model
+print('Average absolute pairwise correlation: %.3f.' % (np.mean(np.abs(corr_g))))
 
-    # Initialize the machine
-    machine = KnockoffMachine(pars)
+# Load the default hyperparameters for this model
+training_params = parameters.GetTrainingHyperParams(model)
 
-    # Load the machine
-    machine.load(checkpoint_name)
+# Set the parameters for training deep knockoffs
+pars = dict()
+# Number of epochs
+pars['epochs'] = 100
+# Number of iterations over the full data per epoch
+pars['epoch_length'] = 10
+# Data type, either "continuous" or "binary"
+pars['family'] = "continuous"
+# Dimensions of the data
+pars['p'] = p
+# Size of the test set
+pars['test_size'] = 1
+# Batch size
+pars['batch_size'] = int(0.2*n)
+# Learning rate
+pars['lr'] = 0.001
+# When to decrease learning rate (unused when equal to number of epochs)
+pars['lr_milestones'] = [pars['epochs']]
+# Width of the network (number of layers is fixed to 6)
+pars['dim_h'] = int(20*p)
+# Penalty for the MMD distance
+pars['GAMMA'] = training_params['GAMMA']
+# Penalty encouraging second-order knockoffs
+pars['LAMBDA'] = training_params['LAMBDA']
+# Decorrelation penalty hyperparameter
+pars['DELTA'] = training_params['DELTA']
+# Target pairwise correlations between variables and knockoffs
+pars['target_corr'] = corr_g
+# Kernel widths for the MMD measure (uniform weights)
+pars['alphas'] = [1., 2., 4., 8., 16., 32., 64., 128.]
 
-    # Number of non-zero coefficients in P(Y|X)
-    signal_n = 25
+# Where the machine is stored
+checkpoint_name = "tmp/" + model
 
-    # Amplitude of the non-zero coefficients
-    # signal_amplitude_vec = [1]
+# Initialize the machine
+machine = KnockoffMachine(pars)
 
-    # Compute the FDR as the average proportion of false discoveries over n_experiments
-    n_experiments = 100
+# Load the machine
+machine.load(checkpoint_name, ds=k)
 
-    # Target FDR level
-    nominal_fdr = 0.3
+# Amplitude of the non-zero coefficients
+# signal_amplitude_vec = [1]
 
-    test_params = parameters.GetFDRTestParams(model)
+# Compute the FDR as the average proportion of false discoveries over n_experiments
+n_experiments = 10
 
-    # Initialize table of results
-    results = pd.DataFrame(columns=['Model', 'Experiment', 'Method', 'FDP', 'Power', 'Amplitude', 'Signals', 'Alpha', 'FDR.nominal'])
+# Target FDR level
+nominal_fdr = 0.1
 
-    # Run experiments
-    print("Running %d experiments:" % (n_experiments))
+test_params = parameters.GetFDRTestParams(model)
 
-    for exp_id in range(n_experiments):
-        # Show progress
-        sys.stdout.write('\r')
-        sys.stdout.write(
-            "[%-25s] %d%%" % ('=' * int((exp_id + 1) / n_experiments * 25), ((exp_id + 1) / n_experiments) * 100))
-        sys.stdout.flush()
+# Initialize table of results
+results = pd.DataFrame(columns=['Model', 'Experiment', 'Method', 'FDP', 'Power', 'Amplitude', 'Signals', 'Alpha', 'FDR.nominal'])
 
-        # Generate deep knockoffs
-        Xk_m = machine.generate(data_train['x'])
-        # Compute importance statistics
-        W_m = selection.lasso_stats(data_train['x'], Xk_m, np.array(data_train['y'], dtype=np.float64),
-                                    alpha=test_params["elasticnet_alpha"], scale=False)
-        # Select important variables with the knockoff filter
-        selected_m = selection.select_IHDP(W_m, nominal_fdr=nominal_fdr)
-        # print(f'\n {W_m} \n {selected_m} \n')
-        # print(f'    selected covariates: {selected_m}')
+# Run experiments
+print("Running %d experiments:" % (n_experiments))
 
-        # print(W_m)
+for exp_id in range(n_experiments):
+    # Show progress
+    sys.stdout.write('\r')
+    sys.stdout.write(
+        "[%-25s] %d%%" % ('=' * int((exp_id + 1) / n_experiments * 25), ((exp_id + 1) / n_experiments) * 100))
+    sys.stdout.flush()
 
-    for exp_id in range(n_experiments):
+    # Generate deep knockoffs
+    Xk_m = machine.generate(data_test['x'])
+    # Compute importance statistics
+    W_m = selection.lasso_stats(data_test['x'], Xk_m, np.array(data_test['y'], dtype=np.float64),
+                                alpha=test_params["elasticnet_alpha"], scale=False)
+    print(W_m)
+    # Select important variables with the knockoff filter
+    selected_m = selection.select_IHDP(W_m, nominal_fdr=nominal_fdr)
+    # print(f'\n {W_m} \n {selected_m} \n')
+    print(f'    selected covariates: {selected_m}')
 
-        # Generate second-order knockoffs
-        Xk_g = second_order.generate(data_train['x'])
-        # Compute importance statistics
-        W_g = selection.lasso_stats(data_train['x'], Xk_g, np.array(data_train['y'], dtype=np.float64),
-                                    alpha=test_params["elasticnet_alpha"], scale=False)
-        # Select important variables with the knockoff filter
-        selected_g = selection.select_IHDP(W_g, nominal_fdr=nominal_fdr)
-        # print(f'\n {W_g} \n {selected_g} \n')
-        # print(f'    selected covariates: {selected_g}')
+    # print(W_m)
 
-    sys.stdout.write('\n')
+# for exp_id in range(n_experiments):
+#
+#     # Generate second-order knockoffs
+#     Xk_g = second_order.generate(data_test['x'])
+#     # Compute importance statistics
+#     W_g = selection.lasso_stats(data_test['x'], Xk_g, np.array(data_test['y'], dtype=np.float64),
+#                                 alpha=test_params["elasticnet_alpha"], scale=False)
+#     # Select important variables with the knockoff filter
+#     selected_g = selection.select_IHDP(W_g, nominal_fdr=nominal_fdr)
+#     # print(f'\n {W_g} \n {selected_g} \n')
+#     # print(f'    selected covariates: {selected_g}')
+
+sys.stdout.write('\n')
 
