@@ -84,7 +84,7 @@ checkpoint_name = "tmp/" + model
 machine = KnockoffMachine(pars)
 
 # Load the machine
-machine.load(checkpoint_name)
+machine.load(checkpoint_name, ds)
 
 # Number of non-zero coefficients in P(Y|X)
 signal_n = 25

@@ -94,37 +94,74 @@ class Net_IHDP(nn.Module):
 
         self.p = p
         self.p_binary = 19
+        self.p_continous = 6
+        self.p_noise_continous = 0
         self.dim_h = dim_h
 
-        self.main = nn.Sequential(
-            nn.Linear(self.p, self.dim_h, bias=False),
+        self.continous = nn.Sequential(
+            nn.Linear(self.p_continous, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
             nn.Linear(self.dim_h, self.dim_h, bias=False),
             nn.BatchNorm1d(self.dim_h),
-            # nn.Dropout(p=0.5, inplace=False),
             nn.PReLU(),
-            nn.Linear(self.dim_h, self.p)
+            nn.Linear(self.dim_h, self.p_continous)
         )
 
-        self.binary_head = nn.Sequential(
+        # self.noise_continous = nn.Sequential(
+        #     nn.Linear(self.p_noise_continous, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.dim_h, bias=False),
+        #     nn.BatchNorm1d(self.dim_h),
+        #     nn.PReLU(),
+        #     nn.Linear(self.dim_h, self.p_noise_continous)
+        # )
+
+        self.binary = nn.Sequential(
+            nn.Linear(self.p_binary, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.dim_h, bias=False),
+            nn.BatchNorm1d(self.dim_h, eps=1e-02),
+            nn.PReLU(),
+            nn.Linear(self.dim_h, self.p_binary),
             nn.Sigmoid(),
             nn.BatchNorm1d(self.p_binary, eps=1e-02),
         )
@@ -138,10 +175,10 @@ class Net_IHDP(nn.Module):
         # x_cat = torch.cat((x, noise), 1)
         # x_cat[:, 0::2] = x
         # x_cat[:, 1::2] = noise
-        output = self.main(x)
-        # continous_output = torch.cat((output[:, :6], output[:, 25:]), 1)
-        continous_output = output[:, :6]
-        binary_output = self.binary_head(output[:, 6:25])
+        continous_output = self.continous(x[:, :6])
+        binary_output = self.binary(x[:, 6:25])
+        # gaussian_noise_output = self.noise_continous(x[:, 25:])
+        # out = torch.cat((continous_output, binary_output, gaussian_noise_output), 1)
         out = torch.cat((continous_output, binary_output), 1)
 
         return out
@@ -456,8 +493,8 @@ class KnockoffMachine:
         # else:
         #     X_test = torch.zeros(0, self.p)
 
-        X = torch.from_numpy(X_in[self.test_size:]).float()
-        X_test = torch.from_numpy(X_in_test[self.test_size:]).float()
+        X = torch.from_numpy(X_in).float()
+        X_test = torch.from_numpy(X_in_test).float()
 
         # used to compute statistics and diagnostics
         self.SigmaHat = np.cov(X, rowvar=False)
@@ -475,7 +512,7 @@ class KnockoffMachine:
         else:  # start learning from scratch
             self.net.train()
             # Define the optimization method
-            self.net_optim = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9)
+            self.net_optim = optim.Adam(self.net.parameters(), lr=self.lr)
             # Define the scheduler
             self.net_sched = optim.lr_scheduler.MultiStepLR(self.net_optim, gamma=0.1,
                                                             milestones=self.lr_milestones)
@@ -628,7 +665,7 @@ class KnockoffMachine:
                     'scheduler': self.net_sched.state_dict(),
                 }, self.checkpoint_name)
 
-    def load(self, checkpoint_name, ds):
+    def load(self, checkpoint_name, ds=0):
         """ Load a machine from a stored checkpoint
         :param checkpoint_name: checkpoint name of a trained machine
         """

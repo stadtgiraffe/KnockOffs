@@ -5,16 +5,14 @@ import data
 import parameters
 from data import load_IHDP_data
 
-for k in range(5):
-    data_train, data_test = load_IHDP_data(type_a=True, i=k)
-    print(f'processing ds {k}')
-    data_train['x'] = np.concatenate((data_train['x'], np.random.randn(data_train['x'].shape[0], 25)), 1)
-    data_test['x'] = np.concatenate((data_test['x'], np.random.randn(data_test['x'].shape[0], 25)), 1)
+data_train, data_test = load_IHDP_data(type_a=True, i=1)
+# data_train['x'] = np.concatenate((data_train['x'], np.random.randn(data_train['x'].shape[0], 10)), 1)
+# data_test['x'] = np.concatenate((data_test['x'], np.random.randn(data_test['x'].shape[0], 10)), 1)
 
-data_train, data_test = load_IHDP_data(type_a=True, i=0)
+k = 9
 
-for k in range(1, 100):
-    ds_train, ds_test = load_IHDP_data(type_a=True, i=k)
+for l in range(1, k+1):
+    ds_train, ds_test = load_IHDP_data(type_a=True, i=l)
     data_train['x'] = np.concatenate((data_train['x'], ds_train['x']), 0)
     data_train['t'] = np.concatenate((data_train['t'], ds_train['t']), 0)
     data_train['y'] = np.concatenate((data_train['y'], ds_train['y']), 0)
@@ -27,13 +25,11 @@ for k in range(1, 100):
     data_test['mu_0'] = np.concatenate((data_test['mu_0'], ds_test['mu_0']), 0)
     data_test['mu_1'] = np.concatenate((data_test['mu_1'], ds_test['mu_1']), 0)
 
-# data_train, data_test = load_IHDP_data(type_a=True, i=0)
-
 # Compute the empirical covariance matrix of the training data
 SigmaHat = np.cov(data_train['x'], rowvar=False)
 
 # Initialize generator of second-order knockoffs
-second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data_train['x'], 0), method="sdp")
+second_order = GaussianKnockoffs(SigmaHat, mu=np.mean(data_train['x'], 0), method="equi")
 
 # Measure pairwise second-order knockoff correlations
 corr_g = (np.diag(SigmaHat) - np.diag(second_order.Ds)) / np.diag(SigmaHat)
@@ -57,23 +53,23 @@ training_params = parameters.GetTrainingHyperParams(model)
 # Set the parameters for training deep knockoffs
 pars = dict()
 # Number of epochs
-pars['epochs'] = 100
+pars['epochs'] = 1000
 # Number of iterations over the full data per epoch
 pars['epoch_length'] = 10
 # Data type, either "continuous" or "binary"
-pars['family'] = "continuous"
+pars['family'] = "binary"
 # Dimensions of the data
 pars['p'] = p
 # Size of the test set
 pars['test_size'] = 1
 # Batch size
-pars['batch_size'] = int(0.2*n)
+pars['batch_size'] = int(1.0*n)
 # Learning rate
-pars['lr'] = 0.001
+pars['lr'] = 0.01
 # When to decrease learning rate (unused when equal to number of epochs)
-pars['lr_milestones'] = [pars['epochs']]
+pars['lr_milestones'] = [50]
 # Width of the network (number of layers is fixed to 6)
-pars['dim_h'] = int(20*p)
+pars['dim_h'] = int(2*p)
 # Penalty for the MMD distance
 pars['GAMMA'] = training_params['GAMMA']
 # Penalty encouraging second-order knockoffs

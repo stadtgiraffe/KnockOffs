@@ -17,7 +17,7 @@ def kfilter(W, offset=1.0, q=0.5):
     ratio = np.zeros(len(t))
     for i in range(len(t)):
         ratio[i] = (offset + np.sum(W <= -t[i])) / np.maximum(1.0, np.sum(W >= t[i]))
-
+    # print(f'\n{ratio}')
     index = np.where(ratio <= q)[0]
     if len(index) == 0:
         thresh = float('inf')
